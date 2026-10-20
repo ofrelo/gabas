@@ -65,6 +65,7 @@ tbody tr:hover{background:var(--accent-soft)}
 tfoot td{font-weight:600;border-top:2px solid var(--ink);border-bottom:0}
 .tag{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 .approx{color:var(--ball)}
+.ma{color:var(--muted);font-size:11px;margin-right:4px}
 .note{color:var(--muted);font-size:12px}
 .src{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
 .src ul{margin:0;padding-left:18px}
@@ -130,7 +131,7 @@ a{color:var(--accent)}
 </section>
 <section class="panel"><h2 id="ctitle">Rungtynės ir taškai per sezoną</h2><div class="crow" id="cstat" style="margin-bottom:10px"></div><div class="legend" id="legend"></div><div id="chart"></div></section>
 <section><div class="tw"><table id="tbl"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
-<p class="note"><span class="approx">Oranžiniai</span> skaičiai – apytikslės sumos (vidurkis × rungtynės): 2025-26 ir 2026-27. Procentai skaičiuojami iš sumų.</p></section>
+<p class="note"><span class="approx">Oranžiniai</span> skaičiai – apytikslės sumos (vidurkis × rungtynės): 2025-26 ir 2026-27. Metimai rodomi kaip pataikė/metė (sumos arba vidurkis per rungtynes) ir procentas, skaičiuojamas iš sumų.</p></section>
 <section id="lietkabelis" style="display:grid;gap:12px">
   <div class="sechead"><h2>Lietkabelio visų laikų top 5</h2><span class="note">Sumos už Lietkabelį (Lietkabelis, Kalnapilis, Sema, Panevėžys, Techasas), 1993-94 – 2026-27</span></div>
   <div class="crow" id="f-lk"><label class="l">Turnyras</label></div>
@@ -164,7 +165,7 @@ const TEAMS=["Dartmouth (NCAA)","Peñas Huesca","Palencia Baloncesto","Kėdaini�
 const KCOL={"Dartmouth (NCAA)":"var(--t-dart)","Peñas Huesca":"var(--t-hue)","Palencia Baloncesto":"var(--t-pal)","Kėdainių Nevėžis":"var(--t-nev)","Panevėžio Lietkabelis":"var(--t-lk)","Lietuvos rinktinė":"var(--t-ltu)"};
 const TCOL={"Vietinė lyga":"var(--c1)","Eurotaurė":"var(--c2)","Taurė":"var(--c4)","Rinktinė":"var(--c3)","Kita":"var(--c6)","Universitetas":"var(--c5)"};
 const SUMK=["GP","GS","MIN","PTS","FGM","FGA","TPM","TPA","FTM","FTA","OREB","DREB","REB","AST","STL","BLK","TOV","PF"];
-const COLS=[["GP","GP"],["GS","GS"],["MIN","MIN"],["PTS","TŠK"],["F2","DVT%"],["TP","TRT%"],["FG","MET%"],["FT","BMT%"],["OREB","PULT"],["DREB","GYN"],["REB","ATK"],["AST","RP"],["STL","PER"],["BLK","BLK"],["TOV","KL"],["PF","PRAŽ"],["EFF","NB"]];
+const COLS=[["GP","GP"],["GS","GS"],["MIN","MIN"],["PTS","TŠK"],["F2","DVT p/m %"],["TP","TRT p/m %"],["FG","MET p/m %"],["FT","BMT p/m %"],["OREB","PULT"],["DREB","GYN"],["REB","ATK"],["AST","RP"],["STL","PER"],["BLK","BLK"],["TOV","KL"],["PF","PRAŽ"],["EFF","NB"]];
 const st={cstat:"PTS",mode:"avg",group:"row",ctype:new Set(TYPES.filter(t=>t!=="Universitetas"&&t!=="Kita")),team:new Set(),comp:new Set(),sort:null,dir:-1};
 const teams=[...new Set(DATA.map(r=>r.team))], comps=[...new Set(DATA.map(r=>r.comp))];
 teams.forEach(t=>st.team.add(t)); comps.forEach(c=>st.comp.add(c));
@@ -179,18 +180,22 @@ function agg(rows,label){
   if(full.length){const f=k=>full.reduce((a,r)=>a+ +r[k],0);o.EFFs=f("PTS")+f("REB")+f("AST")+f("STL")+f("BLK")-(f("FGA")-f("FGM"))-(f("FTA")-f("FTM"))-f("TOV");o.gp_EFF=full.reduce((a,r)=>a+ +r.GP,0)}
   return o}
 const pct=(m,a)=>a?((m/a)*100).toFixed(1):"–";
+function shot(o,k){
+  if(k==="FG")return o.FGA!=null?[o.FGM,o.FGA,o.gp_FGA]:null;
+  if(k==="F2")return o.FGA!=null&&o.TPA!=null?[o.FGM-o.TPM,o.FGA-o.TPA,o.gp_FGA]:null;
+  if(k==="TP")return o.TPA!=null?[o.TPM,o.TPA,o.gp_TPA]:null;
+  if(k==="FT")return o.FTA!=null?[o.FTM,o.FTA,o.gp_FTA]:null;}
 function cell(o,k){
-  if(k==="FG")return o.FGA!=null?pct(o.FGM,o.FGA):"–";
-  if(k==="F2")return o.FGA!=null&&o.TPA!=null?pct(o.FGM-o.TPM,o.FGA-o.TPA):"–";
-  if(k==="TP")return o.TPA!=null?pct(o.TPM,o.TPA):"–";
-  if(k==="FT")return o.FTA!=null?pct(o.FTM,o.FTA):"–";
+  if(["FG","F2","TP","FT"].includes(k)){const s=shot(o,k);if(!s)return"–";const[m,a,g]=s;
+    const f=v=>st.mode==="avg"?(g?(v/g).toFixed(1):"–"):Math.round(v);
+    return `<span class="ma">${f(m)}/${f(a)}</span> ${pct(m,a)}`}
   if(k==="EFF"){if(o.EFFs==null)return"–";return st.mode==="avg"?(o.EFFs/o.gp_EFF).toFixed(1):Math.round(o.EFFs)}
   const v=o[k];if(v==null)return"–";
   if(k==="GP")return v;
   if(st.mode==="tot")return k==="MIN"?Math.round(v):Math.round(v);
   if(k==="GS")return v;
   return (v/o["gp_"+k]).toFixed(1)}
-function sval(o,k){const c=cell(o,k);return c==="–"?-1e9:parseFloat(c)}
+function sval(o,k){if(["FG","F2","TP","FT"].includes(k)){const x=shot(o,k);return x&&x[1]?x[0]/x[1]:-1e9}const c=cell(o,k);return c==="–"?-1e9:parseFloat(c)}
 function filt(){return DATA.filter(r=>st.ctype.has(r.ctype)&&st.team.has(r.team)&&st.comp.has(r.comp))}
 function chips(id,vals,set,lab){
   const el=document.getElementById(id);el.querySelectorAll("button").forEach(b=>b.remove());
